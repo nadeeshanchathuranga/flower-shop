@@ -196,6 +196,25 @@
         </div>
       </Link>
 
+      <Link href="/wastages" v-if="HasRole(['Admin', 'Manager'])">
+        <div class="dashboard-card bg-[#dc2626]">
+          <div class="card-content">
+            <div class="icon-container">
+              <img
+                src="/images/dashboard/products.png"
+                class="icon"
+                alt="dresshub.lk"
+              />
+            </div>
+            <div class="text-container">
+              <p class="title">Wastage Management</p>
+              <p class="description">
+                Track and record wasted flower inventory with automatic stock adjustments and detailed reason logging for better inventory control.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Link>
 
       <Link href="/coupons" v-if="HasRole(['Admin'])">
         <div class="dashboard-card bg-[#FF1744]">

@@ -19,6 +19,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\StockTransactionController;
 use App\Http\Controllers\TransactionHistoryController;
 use App\Http\Controllers\ManualPosController;
+use App\Http\Controllers\WastageController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -95,6 +96,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('transactionHistory', TransactionHistoryController::class );
     Route::post('/transactions/delete', [TransactionHistoryController::class, 'destroy'])->name('transactions.delete');
     Route::resource('stock-transition', StockTransactionController::class);
+    Route::resource('wastages', WastageController::class);
     Route::resource('manualpos', ManualPosController::class);
 
 
