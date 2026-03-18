@@ -7,6 +7,7 @@ use App\Models\Report;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\StockTransaction;
+use App\Models\Wastage;
 use DateTime;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -136,6 +137,25 @@ class ReportController extends Controller
     // Distinct customers (same filter)
     $totalCustomer = (clone $salesQuery)->distinct('customer_id')->count('customer_id');
 
+    $wastagesQuery = Wastage::with(['product', 'user']);
+    if ($from && $to) {
+        $wastagesQuery->whereBetween('wastage_date', [$from->toDateString(), $to->toDateString()]);
+    } elseif ($from) {
+        $wastagesQuery->whereDate('wastage_date', '>=', $from->toDateString());
+    } elseif ($to) {
+        $wastagesQuery->whereDate('wastage_date', '<=', $to->toDateString());
+    }
+
+    $wastages = $wastagesQuery->orderBy('wastage_date', 'desc')->get();
+    $totalWastageRecords = $wastages->count();
+    $totalWastageQty = (int) $wastages->sum('quantity');
+    $totalWastageCostLoss = (float) $wastages->sum(function ($wastage) {
+        return (float) ($wastage->quantity ?? 0) * (float) ($wastage->product->cost_price ?? 0);
+    });
+    $totalWastageSalesLoss = (float) $wastages->sum(function ($wastage) {
+        return (float) ($wastage->quantity ?? 0) * (float) ($wastage->product->selling_price ?? 0);
+    });
+
 
 
 
@@ -159,6 +179,12 @@ class ReportController extends Controller
         'categorySales'             => $categorySales,
         'employeeSalesSummary'      => $employeeSalesSummary,
         'paymentMethodTotals'       => $paymentMethodTotals,
+
+        'wastages'                  => $wastages,
+        'totalWastageRecords'       => $totalWastageRecords,
+        'totalWastageQty'           => $totalWastageQty,
+        'totalWastageCostLoss'      => round($totalWastageCostLoss, 2),
+        'totalWastageSalesLoss'     => round($totalWastageSalesLoss, 2),
 
       
     ]);

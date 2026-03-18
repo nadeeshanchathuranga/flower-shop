@@ -169,6 +169,28 @@
       </div>
     </div>
 
+    <div class="grid w-full md:grid-cols-4 grid-cols-2 gap-4">
+      <div class="py-6 flex flex-col justify-center items-center border-2 border-[#DC2626] w-full space-y-4 rounded-2xl bg-[#FCA5A566] shadow-lg hover:-translate-y-1 transition">
+        <h2 class="text-xl font-extrabold tracking-wide text-black uppercase">Wastage Records</h2>
+        <p class="text-2xl font-bold text-black">{{ totalWastageRecords }}</p>
+      </div>
+
+      <div class="py-6 flex flex-col justify-center items-center border-2 border-[#B91C1C] w-full space-y-4 rounded-2xl bg-[#FECACA66] shadow-lg hover:-translate-y-1 transition">
+        <h2 class="text-xl font-extrabold tracking-wide text-black uppercase">Wastage Qty</h2>
+        <p class="text-2xl font-bold text-black">{{ totalWastageQty }} QTY</p>
+      </div>
+
+      <div class="py-6 flex flex-col justify-center items-center border-2 border-[#7F1D1D] w-full space-y-4 rounded-2xl bg-[#FEE2E266] shadow-lg hover:-translate-y-1 transition">
+        <h2 class="text-xl font-extrabold tracking-wide text-black uppercase">Wastage Cost Loss</h2>
+        <p class="text-2xl font-bold text-black">{{ toMoney(totalWastageCostLoss) }} LKR</p>
+      </div>
+
+      <div class="py-6 flex flex-col justify-center items-center border-2 border-[#991B1B] w-full space-y-4 rounded-2xl bg-[#FCA5A566] shadow-lg hover:-translate-y-1 transition">
+        <h2 class="text-xl font-extrabold tracking-wide text-black uppercase">Wastage Sales Loss</h2>
+        <p class="text-2xl font-bold text-black">{{ toMoney(totalWastageSalesLoss) }} LKR</p>
+      </div>
+    </div>
+
     <!-- Charts -->
     <div class="flex md:flex-row flex-col items-center justify-center w-full h-full md:space-x-4 md:space-y-0 space-y-4">
       <div class="flex flex-col justify-between items-center md:w-1/3 w-full bg-white border-4 border-black rounded-xl h-[450px]">
@@ -460,6 +482,70 @@
       </div>
     </div>
 
+    <div class="w-full bg-white border-4 border-black rounded-xl p-6">
+      <h2 class="text-2xl font-semibold text-slate-700 text-center pb-4">Wastage Report Table</h2>
+
+      <div class="flex justify-between items-center pb-4">
+        <button @click="downloadWastageTablePDF" class="px-4 py-2 text-md font-semibold text-white bg-orange-600 rounded-lg hover:bg-orange-700 shadow-md">
+          Download PDF
+        </button>
+
+        <div class="flex items-center gap-3">
+          <div class="py-2 px-4 border-2 border-red-600 rounded-xl bg-red-100 shadow-sm text-center">
+            <p class="text-sm font-extrabold text-black uppercase">
+              Total Wastage Qty:
+              <span class="text-base font-bold">{{ totalWastageQty }}</span>
+            </p>
+          </div>
+          <div class="py-2 px-4 border-2 border-slate-700 rounded-xl bg-slate-100 shadow-sm text-center">
+            <p class="text-sm font-extrabold text-black uppercase">
+              Cost Loss:
+              <span class="text-base font-bold">{{ toMoney(totalWastageCostLoss) }} LKR</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto max-h-[420px] border rounded-xl mt-2">
+        <table id="wastageTbl" class="w-full text-gray-800 bg-white border border-gray-300 rounded-lg shadow-md table-auto">
+          <thead>
+            <tr class="bg-gradient-to-r from-red-700 via-red-600 to-red-700 text-white text-[14px] border-b border-red-800">
+              <th class="p-3 text-left font-semibold">#</th>
+              <th class="p-3 text-left font-semibold">Date</th>
+              <th class="p-3 text-left font-semibold">Product</th>
+              <th class="p-3 text-center font-semibold">Qty</th>
+              <th class="p-3 text-center font-semibold">Reason</th>
+              <th class="p-3 text-center font-semibold">Recorded By</th>
+              <th class="p-3 text-center font-semibold">Cost Loss (LKR)</th>
+              <th class="p-3 text-center font-semibold">Sales Loss (LKR)</th>
+            </tr>
+          </thead>
+          <tbody class="text-[12px] font-medium">
+            <tr v-for="(w, i) in wastages" :key="w.id ?? i" class="border-b transition duration-200 hover:bg-gray-100">
+              <td class="p-3 text-center">{{ i + 1 }}</td>
+              <td class="p-3 text-center">{{ formatDate(w.wastage_date) }}</td>
+              <td class="p-3 font-bold">{{ w.product?.name || 'N/A' }}</td>
+              <td class="p-3 text-center">{{ Number(w.quantity || 0) }}</td>
+              <td class="p-3 text-center">{{ w.reason || 'N/A' }}</td>
+              <td class="p-3 text-center">{{ w.user?.name || 'N/A' }}</td>
+              <td class="p-3 text-center">{{ toMoney(Number(w.quantity || 0) * Number(w.product?.cost_price || 0)) }}</td>
+              <td class="p-3 text-center">{{ toMoney(Number(w.quantity || 0) * Number(w.product?.selling_price || 0)) }}</td>
+            </tr>
+          </tbody>
+          <tfoot class="bg-gray-50 text-[12px] font-semibold">
+            <tr>
+              <td class="p-3 text-right" colspan="3">Totals:</td>
+              <td class="p-3 text-center">{{ totalWastageQty }}</td>
+              <td class="p-3"></td>
+              <td class="p-3"></td>
+              <td class="p-3 text-center">{{ toMoney(totalWastageCostLoss) }}</td>
+              <td class="p-3 text-center">{{ toMoney(totalWastageSalesLoss) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
 
 
 
@@ -504,6 +590,7 @@ ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale, LinearScale,
 const props = defineProps({
   products: { type: Array, required: true },
   sales: { type: Array, required: true },
+  wastages: { type: Array, required: true },
 
   totalSaleAmount: { type: Number, required: true },
   averageTransactionValue: { type: Number, required: true },
@@ -520,6 +607,11 @@ const props = defineProps({
   categorySales: { type: Object, required: true },
   employeeSalesSummary: { type: Object, required: true },
 
+  totalWastageRecords: { type: Number, required: true },
+  totalWastageQty: { type: Number, required: true },
+  totalWastageCostLoss: { type: Number, required: true },
+  totalWastageSalesLoss: { type: Number, required: true },
+
 
 });
 
@@ -529,6 +621,7 @@ const endDate   = ref(props.endDate);
 const products  = ref(props.products);
 
 const sales     = ref(props.sales);
+const wastages  = ref(props.wastages);
 
 
 // Formatting helpers
@@ -1009,6 +1102,44 @@ const downloadStockTablePDF = () => {
   doc.save(`Top_Products_Stock_${safe(dateRangeLabel.value)}.pdf`);
 };
 
+const downloadWastageTablePDF = () => {
+  const doc = new jsPDF("l", "mm", "a4");
+  doc.setFontSize(16);
+  doc.text("Wastage Report", 14, 12);
+  doc.setFontSize(10);
+  doc.text(`Date range: ${dateRangeLabel.value} • Generated: ${new Date().toLocaleString()}`, 14, 18);
+
+  const rows = wastages.value.map((w, i) => {
+    const qty = Number(w.quantity || 0);
+    const costLoss = qty * Number(w.product?.cost_price || 0);
+    const salesLoss = qty * Number(w.product?.selling_price || 0);
+
+    return [
+      i + 1,
+      formatDate(w.wastage_date),
+      w.product?.name || "N/A",
+      qty,
+      w.reason || "N/A",
+      w.user?.name || "N/A",
+      toMoney(costLoss),
+      toMoney(salesLoss),
+    ];
+  });
+
+  doc.autoTable({
+    head: [["#", "Date", "Product", "Qty", "Reason", "Recorded By", "Cost Loss (LKR)", "Sales Loss (LKR)"]],
+    body: rows,
+    foot: [["", "", "Totals:", totalWastageQty, "", "", toMoney(totalWastageCostLoss), toMoney(totalWastageSalesLoss)]],
+    startY: 24,
+    theme: "striped",
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [185, 28, 28], textColor: 255 },
+  });
+
+  const safe = (s) => s.replace(/[^\dA-Za-z-]/g, "_");
+  doc.save(`Wastage_Report_${safe(dateRangeLabel.value)}.pdf`);
+};
+
 // ===== DataTables init =====
 onMounted(() => {
   const jq = window.$;
@@ -1035,6 +1166,25 @@ onMounted(() => {
     });
   }
 
+  const $wastage = jq && jq("#wastageTbl");
+  if ($wastage && jq.fn.dataTable) {
+    if (jq.fn.dataTable.isDataTable($wastage)) $wastage.DataTable().destroy();
+    const dtWastage = $wastage.DataTable({
+      dom: "Bfrtip",
+      paging: false,
+      buttons: [],
+      columnDefs: [{ targets: 0, searchable: false, orderable: false }],
+      initComplete: function () {
+        const $input = jq("#wastageTbl_filter input");
+        $input.attr("placeholder", "Search wastage...");
+        $input.on("keypress", function (e) {
+          if (e.which == 13) dtWastage.search(this.value).draw();
+        });
+      },
+      language: { search: "" },
+    });
+  }
+
 
 });
 </script>
@@ -1044,16 +1194,16 @@ onMounted(() => {
 .dataTables_wrapper .dataTables_paginate {
   display: flex; justify-content: center; align-items: center; margin-top: 20px;
 }
-#salesTbl_filter, #stockQtyTbl_filter, #expenseTbl_filter {
+#salesTbl_filter, #stockQtyTbl_filter, #expenseTbl_filter, #wastageTbl_filter {
   display: flex; justify-content: flex-end; align-items: center; margin-bottom: 16px; float: left;
 }
-#salesTbl_filter label, #stockQtyTbl_filter label, #expenseTbl_filter label { font-size: 17px; color: #000000; display: flex; align-items: center; }
-#salesTbl_filter input[type="search"], #stockQtyTbl_filter input[type="search"], #expenseTbl_filter input[type="search"] {
+#salesTbl_filter label, #stockQtyTbl_filter label, #expenseTbl_filter label, #wastageTbl_filter label { font-size: 17px; color: #000000; display: flex; align-items: center; }
+#salesTbl_filter input[type="search"], #stockQtyTbl_filter input[type="search"], #expenseTbl_filter input[type="search"], #wastageTbl_filter input[type="search"] {
   font-weight: 400; padding: 9px 15px; font-size: 14px; color: #000000cc;
   border: 1px solid rgb(209 213 219); border-radius: 5px; background: #fff;
   outline: none; transition: all 0.5s ease;
 }
-#salesTbl_filter input[type="search"]:focus, #stockQtyTbl_filter input[type="search"]:focus, #expenseTbl_filter input[type="search"]:focus {
+#salesTbl_filter input[type="search"]:focus, #stockQtyTbl_filter input[type="search"]:focus, #expenseTbl_filter input[type="search"]:focus, #wastageTbl_filter input[type="search"]:focus {
   border: 1px solid #4b5563; box-shadow: none;
 }
 .dataTables_wrapper { margin-bottom: 10px; }
