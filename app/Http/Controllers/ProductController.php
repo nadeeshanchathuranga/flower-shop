@@ -9,10 +9,12 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\StockTransaction;
+use App\Models\PromotionItem;
 use App\Traits\GeneratesUniqueCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 
@@ -23,7 +25,8 @@ class ProductController extends Controller
     public function test(Request $request)
     {
         $allcategories = Category::with('parent')->get()->map(function ($category) {
-            $category->hierarchy_string = $category->hierarchy_string; // Access it
+            // Access the property to ensure it is loaded (if computed)
+            $category->hierarchy_string;
             return $category;
         });
         return Inertia::render('Products/index2', [
@@ -135,7 +138,8 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
 
         // $allcategories = Category::with('parent')->get();
         $allcategories = Category::with('parent')->get()->map(function ($category) {
-            $category->hierarchy_string = $category->hierarchy_string; // Access it
+            // Access the property to ensure it is loaded (if computed)
+            $category->hierarchy_string;
             return $category;
         });
         $colors = Color::orderBy('created_at', 'desc')->get();
@@ -203,6 +207,7 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
             'size_id' => 'nullable|exists:sizes,id',
             'color_id' => 'nullable|exists:colors,id',
             'cost_price' => 'nullable|numeric|min:0',
+            'wholesale_price' => 'nullable|numeric|min:0',
             'selling_price' => [
                 'nullable',
                 'numeric',
@@ -259,7 +264,7 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
             return redirect()->route('products.index')->banner('Product created successfully');
         } catch (\Exception $e) {
             // Log error and redirect back with an error message
-            \Log::error('Error creating product: ' . $e->getMessage());
+            Log::error('Error creating product: ' . $e->getMessage());
 
             return redirect()->back()->with('error', 'An error occurred while creating the product. Please try again.');
         }
@@ -284,6 +289,7 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
             'size_id' => 'nullable|exists:sizes,id',
             'color_id' => 'nullable|exists:colors,id',
             'cost_price' => 'nullable|numeric|min:0',
+            'wholesale_price' => 'nullable|numeric|min:0',
             'selling_price' => 'nullable|numeric|min:0',
             'discounted_price' => 'nullable|numeric|min:0',
             'stock_quantity' => 'nullable|integer|min:0',
@@ -336,7 +342,7 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
             return redirect()->route('products.index')->banner('Product created successfully');
         } catch (\Exception $e) {
             // Log error and redirect back with an error message
-            \Log::error('Error creating product: ' . $e->getMessage());
+            Log::error('Error creating product: ' . $e->getMessage());
 
             return redirect()->back()->with('error', 'An error occurred while creating the product. Please try again.');
         }
@@ -413,6 +419,7 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
             'size_id' => 'nullable|exists:sizes,id',
             'color_id' => 'nullable|exists:colors,id',
             'cost_price' => 'numeric|min:0',
+            'wholesale_price' => 'nullable|numeric|min:0',
             'selling_price' => 'numeric|min:0',
             'stock_quantity' => 'required|integer|min:0',
             'discounted_price' => 'nullable|numeric|min:0',
@@ -622,7 +629,8 @@ public function fetchProducts2(Request $request)
   public function addPromotion(Request $request)
     {
         $allcategories = Category::with('parent')->get()->map(function ($category) {
-            $category->hierarchy_string = $category->hierarchy_string; // Access it
+            // Access the property to ensure it is loaded (if computed)
+            $category->hierarchy_string;
             return $category;
         });
         $colors = Color::orderBy('created_at', 'desc')->get();
@@ -672,7 +680,7 @@ public function fetchProducts2(Request $request)
     ]);
 
     try {
-        return \DB::transaction(function () use ($request, $validated) {
+        return DB::transaction(function () use ($request, $validated) {
             $data = $validated;
 
             if ($request->hasFile('image')) {
@@ -708,7 +716,7 @@ public function fetchProducts2(Request $request)
             $promotion->update(['code' => 'PROD-' . $promotion->id]);
 
             foreach ($items as $i) {
-                \App\Models\PromotionItem::create([
+                PromotionItem::create([
                     'product_id'   => $i['id'],
                     'promotion_id' => $promotion->id,
                     'quantity'     => (int)$i['quantity'],
@@ -734,7 +742,7 @@ public function fetchProducts2(Request $request)
             return redirect()->route('products.index')->banner('Promotion created successfully');
         });
     } catch (\Throwable $e) {
-        \Log::error('Error creating promotion', ['error' => $e->getMessage()]);
+        Log::error('Error creating promotion', ['error' => $e->getMessage()]);
         return back()->with('error', 'An error occurred while creating the promotion. Please try again.')->withInput();
     }
 }

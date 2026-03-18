@@ -93,22 +93,39 @@ const props = defineProps({
     subTotal: String,
     totalDiscount: String,
     total: String,
+    useWholesalePricing: {
+        type: Boolean,
+        default: false,
+    },
     custom_discount: Number,
     custom_discount_type: String
 });
 
 const handlePrintReceipt = () => {
+    const getUnitPrice = (product) => {
+        const wholesale = Number(product?.wholesale_price || 0);
+        const selling = Number(product?.selling_price || 0);
+        const useWholesale =
+            Boolean(product.use_wholesale) ||
+            (props.useWholesalePricing && wholesale > 0);
+
+        if (useWholesale) {
+            return wholesale;
+        }
+        return selling;
+    };
+
     // Calculate totals from props.products
     const subTotal = props.products.reduce(
         (sum, product) =>
-            sum + parseFloat(product.selling_price) * product.quantity,
+            sum + getUnitPrice(product) * product.quantity,
         0
     );
     const customDiscount = Number(props.custom_discount || 0);
     const totalDiscount = props.products
         .reduce((total, item) => {
             // Check if item has a discount
-            if (item.discount && item.discount > 0 && item.apply_discount == true) {
+            if (!props.useWholesalePricing && item.discount && item.discount > 0 && item.apply_discount == true) {
                 const discountAmount =
                     (parseFloat(item.selling_price) - parseFloat(item.discounted_price)) *
                     item.quantity;
@@ -133,12 +150,28 @@ const productRows = props.products
           </td>
           <td style="text-align:center;">${Number(product.quantity || 0)}</td>
           <td>
-            ${
-              (product.discount > 0 && product.apply_discount)
-                ? `<div style="font-weight:bold;font-size:7px;background-color:black;color:white;text-align:center;">${product.discount}% off</div>`
-                : ``
-            }
-            <div>${Number(product.selling_price || 0).toFixed(2)}</div>
+                        ${(() => {
+                            const isWholesale =
+                                Boolean(product.use_wholesale) ||
+                                (props.useWholesalePricing && Number(product.wholesale_price) > 0);
+
+                            if (isWholesale) {
+                                return `
+                                    <div style="font-weight:bold;font-size:7px;background-color:black;color:white;text-align:center;">Wholesale</div>
+                                `;
+                            }
+
+                            return (product.discount > 0 && product.apply_discount)
+                                ? `<div style="font-weight:bold;font-size:7px;background-color:black;color:white;text-align:center;">${product.discount}% off</div>`
+                                : ``;
+                        })()}
+                        <div>${Number(getUnitPrice(product)).toFixed(2)}</div>
+                        <div style="font-size:10px;opacity:0.7;">${
+                            (Boolean(product.use_wholesale) ||
+                                (props.useWholesalePricing && Number(product.wholesale_price) > 0))
+                                ? 'Wholesale'
+                                : 'Retail'
+                        }</div>
           </td>
         </tr>
       `;

@@ -131,6 +131,27 @@
             }}</span>
           </div>
 
+          <!-- Wholesale Price Input -->
+          <div>
+            <label
+              for="wholesale_price"
+              class="block text-sm font-medium text-gray-700"
+              >Wholesale Price</label
+            >
+            <input
+              v-model="form.wholesale_price"
+              type="number"
+              step="0.01"
+              id="wholesale_price"
+              class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+            />
+            <span
+              v-if="form.errors.wholesale_price"
+              class="text-sm text-red-500"
+              >{{ form.errors.wholesale_price }}</span
+            >
+          </div>
+
           <!-- Selling Price Input -->
           <div>
             <label
@@ -276,6 +297,7 @@ const form = useForm({
   size_id: "",
   color_id: "",
   cost_price: null,
+  wholesale_price: null,
   selling_price: null,
   stock_quantity: null,
   barcode: "",

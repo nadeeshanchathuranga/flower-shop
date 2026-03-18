@@ -79,6 +79,14 @@
                                 <img src="/images/selectpsoduct.svg" class="w-6 h-6 ml-2" />
                             </span>
                         </div>
+                        <div class="flex items-center justify-between w-full mt-4 px-2">
+                            <p class="text-lg font-semibold text-black">Wholesale Customer Pricing</p>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input v-model="useWholesalePricing" type="checkbox" class="sr-only peer" />
+                                <div class="relative w-11 h-6 bg-gray-300 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                                <span class="ml-3 text-sm text-black">{{ useWholesalePricing ? 'Wholesale ON' : 'Wholesale OFF' }}</span>
+                            </label>
+                        </div>
 
                         <div class="flex items-end justify-between w-full my-5 border-2 border-black rounded-2xl">
                             <div class="flex items-center justify-center w-3/4">
@@ -192,27 +200,43 @@
                                     </div>
                                     <div class="flex items-center justify-center">
                                         <div>
-                                            <p @click="applyDiscount(item.id)" v-if="
-                                                item.discount &&
-                                                item.discount > 0 &&
-                                                item.apply_discount == false &&
-                                                !appliedCoupon
-                                            "
-                                                class="cursor-pointer py-1 text-center px-4 bg-green-600 rounded-xl font-bold text-white tracking-wider">
-                                                Apply {{ item.discount }}% off
-                                            </p>
+                                            <div class="flex space-x-2 mb-2">
+                                                <p @click="applyDiscount(item.id)" v-if="
+                                                    item.discount &&
+                                                    item.discount > 0 &&
+                                                    item.apply_discount == false &&
+                                                    !appliedCoupon &&
+                                                    !useWholesalePricing &&
+                                                    !item.use_wholesale
+                                                "
+                                                    class="cursor-pointer py-1 px-3 bg-green-600 rounded-lg font-bold text-white text-sm tracking-wider">
+                                                    Apply {{ item.discount }}% off
+                                                </p>
 
-                                            <p v-if="
-                                                item.discount &&
-                                                item.discount > 0 &&
-                                                item.apply_discount == true &&
-                                                !appliedCoupon
-                                            " @click="removeDiscount(item.id)"
-                                                class="cursor-pointer py-1 text-center px-4 bg-red-600 rounded-xl font-bold text-white tracking-wider">
-                                                Remove {{ item.discount }}% Off
-                                            </p>
+                                                <p v-if="
+                                                    item.discount &&
+                                                    item.discount > 0 &&
+                                                    item.apply_discount == true &&
+                                                    !appliedCoupon &&
+                                                    !useWholesalePricing &&
+                                                    !item.use_wholesale
+                                                " @click="removeDiscount(item.id)"
+                                                    class="cursor-pointer py-1 px-3 bg-red-600 rounded-lg font-bold text-white text-sm tracking-wider">
+                                                    Remove {{ item.discount }}% Off
+                                                </p>
+
+                                                <p @click="toggleItemWholesale(item.id)" v-if="item.wholesale_price && item.wholesale_price > 0"
+                                                    :class="[
+                                                        'cursor-pointer py-1 px-3 rounded-lg font-bold text-white text-sm tracking-wider',
+                                                        item.use_wholesale
+                                                            ? 'bg-blue-600'
+                                                            : 'bg-gray-500 hover:bg-gray-600',
+                                                    ]">
+                                                    {{ item.use_wholesale ? 'Wholesale ON' : 'Wholesale' }}
+                                                </p>
+                                            </div>
                                             <p class="text-2xl font-bold text-black text-right">
-                                                {{ item.selling_price }}
+                                                {{ getItemUnitPrice(item).toFixed(2) }}
                                                 LKR
                                             </p>
                                         </div>
@@ -352,6 +376,7 @@
     <PosSuccessModel :open="isSuccessModalOpen" @update:open="handleModalOpenUpdate" :products="products"
         :employee="employee" :cashier="loggedInUser" :customer="customer" :orderid="orderid" :cash="cash"
         :balance="balance" :subTotal="subtotal" :totalDiscount="totalDiscount" :total="total"
+        :useWholesalePricing="useWholesalePricing"
         :custom_discount_type="custom_discount_type"
         :custom_discount="custom_discount" />
     <AlertModel v-model:open="isAlertModalOpen" :message="message" />
@@ -387,6 +412,7 @@ const cash = ref(0);
 const custom_discount = ref(0);
 const isSelectModalOpen = ref(false);
 const custom_discount_type = ref('percent');
+const useWholesalePricing = ref(false);
 const orderid = computed(() => generateOrderId());
 
 
@@ -463,6 +489,14 @@ const orderId = computed(() => {
     ).join("");
 });
 
+const checkoutProducts = computed(() => {
+    return products.value.map((item) => ({
+        ...item,
+        unit_price: getItemUnitPrice(item),
+        use_wholesale: item.use_wholesale || false,
+    }));
+});
+
 const submitOrder = async () => {
     // if (window.confirm("Are you sure you want to confirm the order?")) {
     console.log(products.value);
@@ -474,13 +508,15 @@ const submitOrder = async () => {
     try {
         const response = await axios.post("/pos/submit", {
             customer: customer.value,
-            products: products.value,
+            products: checkoutProducts.value,
             employee_id: employee_id.value,
             paymentMethod: selectedPaymentMethod.value,
             userId: props.loggedInUser.id,
             orderid: orderid.value,
             cash: cash.value,
             custom_discount: custom_discount.value,
+            appliedCoupon: appliedCoupon.value,
+            use_wholesale_pricing: useWholesalePricing.value,
         });
         isSuccessModalOpen.value = true;
         console.log(response.data); // Handle success
@@ -501,7 +537,7 @@ const submitOrder = async () => {
 const subtotal = computed(() => {
     return products.value
         .reduce(
-            (total, item) => total + parseFloat(item.selling_price) * item.quantity,
+            (total, item) => total + getItemUnitPrice(item) * item.quantity,
             0
         )
         .toFixed(2); // Ensures two decimal places
@@ -509,15 +545,15 @@ const subtotal = computed(() => {
 
 const totalDiscount = computed(() => {
     const productDiscount = products.value.reduce((total, item) => {
-        // Check if item has a discount
-        if (item.discount && item.discount > 0 && item.apply_discount == true) {
+        // Check if item has a discount and is not using wholesale or global wholesale pricing
+        if (!item.use_wholesale && !useWholesalePricing.value && item.discount && item.discount > 0 && item.apply_discount == true) {
             const discountAmount =
                 (parseFloat(item.selling_price) - parseFloat(item.discounted_price)) *
                 item.quantity;
             return total + discountAmount;
         }
-        return total; // If no discount, return total as-is
-    }, 0); // Ensures two decimal places
+        return total;
+    }, 0);
 
     const couponDiscount = appliedCoupon.value
         ? Number(appliedCoupon.value.discount)
@@ -525,6 +561,7 @@ const totalDiscount = computed(() => {
 
     return (productDiscount + couponDiscount).toFixed(2);
 });
+
 
 const validateCustomDiscount = () => {
     if (!custom_discount.value || isNaN(custom_discount.value)) {
@@ -625,7 +662,8 @@ const submitBarcode = async () => {
                 products.value.push({
                     ...fetchedProduct,
                     quantity: 1,
-                    apply_discount: false, // Add the new attribute
+                    apply_discount: false,
+                    use_wholesale: false,
                 });
             }
 
@@ -693,6 +731,25 @@ const removeDiscount = (id) => {
     });
 };
 
+const toggleItemWholesale = (id) => {
+    products.value.forEach((product) => {
+        if (product.id === id) {
+            product.use_wholesale = !product.use_wholesale;
+        }
+    });
+};
+
+const getItemUnitPrice = (item) => {
+    const wholesale = Number(item?.wholesale_price ?? 0);
+    const selling = Number(item?.selling_price ?? 0);
+
+    if (item.use_wholesale && wholesale > 0) {
+        return wholesale;
+    }
+
+    return selling;
+};
+
 const handleSelectedProducts = (selectedProducts) => {
     selectedProducts.forEach((fetchedProduct) => {
         const existingProduct = products.value.find(
@@ -707,7 +764,8 @@ const handleSelectedProducts = (selectedProducts) => {
             products.value.push({
                 ...fetchedProduct,
                 quantity: 1,
-                apply_discount: false, // Default additional attribute
+                apply_discount: false,
+                use_wholesale: false,
             });
         }
     });

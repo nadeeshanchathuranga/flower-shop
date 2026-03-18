@@ -26,10 +26,9 @@ class PosController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $allcategories = Category::with('parent')->get()->map(function ($category) {
-            $category->hierarchy_string = $category->hierarchy_string; // Access it
-            return $category;
-        });
+        // Load categories with their parent relationships.
+        // (No transformation is required; the view can access computed properties directly.)
+        $allcategories = Category::with('parent')->get();
         $colors = Color::orderBy('created_at', 'desc')->get();
         $sizes = Size::orderBy('created_at', 'desc')->get();
         $allemployee = Employee::orderBy('created_at', 'desc')->get();
@@ -99,15 +98,21 @@ class PosController extends Controller
         $customer = null;
 
         $products = $request->input('products');
+        $useWholesalePricing = (bool) $request->input('use_wholesale_pricing', false);
         $totalAmount = collect($products)->reduce(function ($carry, $product) {
-            return $carry + ($product['quantity'] * $product['selling_price']);
+            $unitPrice = isset($product['unit_price']) ? (float) $product['unit_price'] : (float) $product['selling_price'];
+            return $carry + ($product['quantity'] * $unitPrice);
         }, 0);
 
         $totalCost = collect($products)->reduce(function ($carry, $product) {
             return $carry + ($product['quantity'] * $product['cost_price']);
         }, 0);
 
-        $productDiscounts = collect($products)->reduce(function ($carry, $product) {
+        $productDiscounts = collect($products)->reduce(function ($carry, $product) use ($useWholesalePricing) {
+            if ($useWholesalePricing) {
+                return $carry;
+            }
+
             if (isset($product['discount']) && $product['discount'] > 0 && isset($product['apply_discount']) && $product['apply_discount'] != false) {
                 $discountAmount = ($product['selling_price'] - $product['discounted_price']) * $product['quantity'];
                 return $carry + $discountAmount;
@@ -188,20 +193,26 @@ class PosController extends Controller
                     }
 
                     if ($productModel->expire_date && now()->greaterThan($productModel->expire_date)) {
+                        $expirationDate = $productModel->expire_date;
+                        if ($expirationDate instanceof \Illuminate\Support\Carbon) {
+                            $expirationDate = $expirationDate->format('Y-m-d');
+                        }
+
                         // Rollback transaction and return error
                         DB::rollBack();
                         return response()->json([
-                            'message' => "The product '{$productModel->name}' has expired (Expiration Date: {$productModel->expire_date->format('Y-m-d')}).",
+                            'message' => "The product '{$productModel->name}' has expired (Expiration Date: {$expirationDate}).",
                         ], 423); // HTTP 422 Unprocessable Entity
                     }
 
                     // Create sale item
+                    $unitPrice = isset($product['unit_price']) ? (float) $product['unit_price'] : (float) $product['selling_price'];
                     SaleItem::create([
                         'sale_id' => $sale->id,
                         'product_id' => $product['id'],
                         'quantity' => $product['quantity'],
-                        'unit_price' => $product['selling_price'],
-                        'total_price' => $product['quantity'] * $product['selling_price'],
+                        'unit_price' => $unitPrice,
+                        'total_price' => $product['quantity'] * $unitPrice,
                     ]);
 
                     StockTransaction::create([

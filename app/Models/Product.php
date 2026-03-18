@@ -6,7 +6,30 @@ use App\Traits\GeneratesUniqueCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-
+/**
+ * @property int $id
+ * @property int|null $category_id
+ * @property int|null $supplier_id
+ * @property int|null $size_id
+ * @property int|null $color_id
+ * @property string|null $name
+ * @property string|null $code
+ * @property float|null $cost_price
+ * @property float|null $wholesale_price
+ * @property float|null $selling_price
+ * @property float|null $discounted_price
+ * @property int|null $stock_quantity
+ * @property float|null $discount
+ * @property string|null $barcode
+ * @property string|null $image
+ * @property \Illuminate\Support\Carbon|null $expire_date
+ * @property string|null $batch_no
+ * @property int|null $total_quantity
+ * @property \Illuminate\Support\Carbon|null $purchase_date
+ * @property bool|null $is_promotion
+ * @property \Illuminate\Support\Carbon $created_at
+ * @property \Illuminate\Support\Carbon $updated_at
+ */
 class Product extends Model
 {
     use HasFactory, GeneratesUniqueCode;
@@ -20,6 +43,7 @@ class Product extends Model
         'discounted_price',
         'color_id',
         'cost_price',
+        'wholesale_price',
         'selling_price',
         'stock_quantity',
         'barcode',
