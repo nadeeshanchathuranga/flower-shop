@@ -201,7 +201,7 @@
           <div class="card-content">
             <div class="icon-container">
               <img
-                src="/images/dashboard/products.png"
+                src="/images/dashboard/expenses.png"
                 class="icon"
                 alt="dresshub.lk"
               />
