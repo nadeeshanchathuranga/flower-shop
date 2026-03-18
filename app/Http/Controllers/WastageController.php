@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Wastage;
 use App\Models\Product;
+use App\Models\StockTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WastageController extends Controller
@@ -81,12 +83,25 @@ class WastageController extends Controller
             ]);
         }
 
-        // Create wastage record
-        $validated['user_id'] = Auth::id();
-        Wastage::create($validated);
+        DB::transaction(function () use ($validated, $product) {
+            $validated['user_id'] = Auth::id();
+            $wastage = Wastage::create($validated);
 
-        // Reduce product stock
-        $product->decrement('stock_quantity', $validated['quantity']);
+            $product->decrement('stock_quantity', $validated['quantity']);
+
+            $stockTransaction = StockTransaction::create([
+                'product_id' => $product->id,
+                'transaction_type' => 'Deducted',
+                'quantity' => $validated['quantity'],
+                'transaction_date' => $validated['wastage_date'],
+                'supplier_id' => $product->supplier_id ?? null,
+                'reason' => $validated['reason'] ?? 'Wastage',
+            ]);
+
+            $wastage->update([
+                'stock_transaction_id' => $stockTransaction->id,
+            ]);
+        });
 
         return redirect()->route('wastages.index')->banner('Wastage recorded successfully.');
     }
@@ -136,27 +151,50 @@ class WastageController extends Controller
             'wastage_date' => 'required|date',
         ]);
 
-        // Calculate stock adjustment
         $oldProduct = Product::findOrFail($wastage->product_id);
         $newProduct = Product::findOrFail($validated['product_id']);
 
-        // Restore old product stock
-        $oldProduct->increment('stock_quantity', $wastage->quantity);
+        $availableForNew = $newProduct->id === $oldProduct->id
+            ? $newProduct->stock_quantity + $wastage->quantity
+            : $newProduct->stock_quantity;
 
-        // Check if new product has sufficient stock
-        if ($newProduct->stock_quantity < $validated['quantity']) {
-            // Revert the increment
-            $oldProduct->decrement('stock_quantity', $wastage->quantity);
+        if ($availableForNew < $validated['quantity']) {
             return back()->withErrors([
-                'quantity' => 'Insufficient stock. Available: ' . $newProduct->stock_quantity
+                'quantity' => 'Insufficient stock. Available: ' . $availableForNew,
             ]);
         }
 
-        // Deduct from new product
-        $newProduct->decrement('stock_quantity', $validated['quantity']);
+        DB::transaction(function () use ($wastage, $validated, $oldProduct, $newProduct) {
+            $oldProduct->increment('stock_quantity', $wastage->quantity);
 
-        // Update wastage record
-        $wastage->update($validated);
+            $newProduct->decrement('stock_quantity', $validated['quantity']);
+
+            $wastage->update($validated);
+
+            if ($wastage->stock_transaction_id) {
+                $wastage->stockTransaction()->update([
+                    'product_id' => $newProduct->id,
+                    'transaction_type' => 'Deducted',
+                    'quantity' => $validated['quantity'],
+                    'transaction_date' => $validated['wastage_date'],
+                    'supplier_id' => $newProduct->supplier_id ?? null,
+                    'reason' => $validated['reason'] ?? 'Wastage',
+                ]);
+            } else {
+                $stockTransaction = StockTransaction::create([
+                    'product_id' => $newProduct->id,
+                    'transaction_type' => 'Deducted',
+                    'quantity' => $validated['quantity'],
+                    'transaction_date' => $validated['wastage_date'],
+                    'supplier_id' => $newProduct->supplier_id ?? null,
+                    'reason' => $validated['reason'] ?? 'Wastage',
+                ]);
+
+                $wastage->update([
+                    'stock_transaction_id' => $stockTransaction->id,
+                ]);
+            }
+        });
 
         return redirect()->route('wastages.index')->banner('Wastage updated successfully.');
     }
@@ -170,11 +208,16 @@ class WastageController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        // Restore product stock before deleting
-        $product = Product::findOrFail($wastage->product_id);
-        $product->increment('stock_quantity', $wastage->quantity);
+        DB::transaction(function () use ($wastage) {
+            $product = Product::findOrFail($wastage->product_id);
+            $product->increment('stock_quantity', $wastage->quantity);
 
-        $wastage->delete();
+            if ($wastage->stock_transaction_id) {
+                $wastage->stockTransaction()->delete();
+            }
+
+            $wastage->delete();
+        });
 
         return redirect()->route('wastages.index')->banner('Wastage deleted successfully.');
     }

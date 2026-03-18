@@ -13,6 +13,7 @@ class Wastage extends Model
     protected $fillable = [
         'product_id',
         'user_id',
+        'stock_transaction_id',
         'quantity',
         'reason',
         'wastage_date',
@@ -31,5 +32,10 @@ class Wastage extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+
+    public function stockTransaction()
+    {
+        return $this->belongsTo(StockTransaction::class, 'stock_transaction_id', 'id');
     }
 }
